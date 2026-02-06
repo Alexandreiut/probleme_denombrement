@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 from itertools import permutations
 import time
@@ -12,7 +11,7 @@ import time
 data = {
     'A': [4, 5, 3, 1, 3],
     'B': [1, 1, 1, 2, 3],
-    'C': [3, 1, 2, 2, 1],
+    'C': [5, 1, 2, 2, 1],
     'D': [3, 4, 1, 1, 2],
     'E': [1, 2, 2, 3, 4],
     'F': [5, 3, 3, 4, 2],
