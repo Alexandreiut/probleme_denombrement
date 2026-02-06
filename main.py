@@ -4,7 +4,7 @@ from itertools import permutations
 import time
 
 # ---------------------------------------------------------
-# 1. CRÉATION DES DONNÉES (D'après votre image Excel)
+# 1. CRÉATION DES DONNÉES
 # ---------------------------------------------------------
 
 # Les joueurs (A à J) et leurs notes par poste
