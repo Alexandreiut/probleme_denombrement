@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 from scipy.optimize import linprog
 import time
 
@@ -59,45 +58,28 @@ res = linprog(c, A_eq=A_eq, b_eq=b_eq, A_ub=A_ub, b_ub=b_ub, bounds=(0, 1), meth
 end_time = time.time()
 
 # ---------------------------------------------------------
-# 4. RÉSULTATS ET VISUALISATION
+# 4. RÉSULTATS ET VISUALISATION (SANS SEABORN)
 # ---------------------------------------------------------
 if res.success:
     score_total = -res.fun
     print(f"\n🚀 OPTIMISATION RÉUSSIE en {end_time - start_time:.4f} secondes !")
     print(f"Score Total Maximisé : {score_total:.0f} / {NB_POSTES * 20} (max théorique)")
     
-    # Remise en forme matricielle (0 ou 1)
     choix_matrix = res.x.reshape(NB_POSTES, NB_CANDIDATS).round().astype(int)
-    
-    # --- VISUALISATION GRAPHIQUE AVANCÉE ---
+
     plt.figure(figsize=(14, 8))
     
-    # On crée un masque : on veut voir en couleur SEULEMENT les élus
-    # Les non-sélectionnés seront grisés ou transparents
-    mask_selection = choix_matrix == 1
-    
-    # Heatmap globale des scores (en gris clair pour le contexte)
-    sns.heatmap(df, cmap="Greys", alpha=0.3, cbar=False, xticklabels=False, yticklabels=True)
-    
-    # Superposition : Seules les cases sélectionnées apparaissent en couleur
-    # On utilise "ma.masked_where" pour cacher ce qui n'est pas sélectionné
-    data_masked = np.ma.masked_where(choix_matrix == 0, df)
-    
-    sns.heatmap(df, mask=~mask_selection, cmap="viridis", annot=False, cbar=True, 
-                cbar_kws={'label': 'Note (1-20)'})
-    
-    # Ajout de petits points rouges sur les cases sélectionnées pour bien les voir
+    # Heatmap simple matplotlib
+    plt.imshow(df.values, aspect='auto')
+    plt.colorbar(label="Note (1-20)")
+
+    # Points rouges pour les affectations
     rows, cols = np.where(choix_matrix == 1)
-    # +0.5 pour centrer le point dans la case
-    plt.scatter(cols + 0.5, rows + 0.5, color='red', s=30, label='Candidat Retenu')
-    
+    plt.scatter(cols, rows, s=30)
+
     plt.title(f"Optimisation V4 : Affectation de {NB_POSTES} postes parmi {NB_CANDIDATS} candidats\nScore Total : {score_total:.0f}", fontsize=16)
     plt.xlabel(f"Les {NB_CANDIDATS} Candidats")
     plt.ylabel(f"Les {NB_POSTES} Postes")
-    plt.legend(loc='upper right')
-    
+
     plt.tight_layout()
     plt.show()
-
-else:
-    print("Le solveur n'a pas trouvé de solution.")

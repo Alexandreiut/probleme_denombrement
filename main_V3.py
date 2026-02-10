@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 from itertools import permutations
 import time
 
@@ -72,20 +71,31 @@ print(f"Combinaisons testées : {compteur}")
 print(f"Score Max (sur l'échantillon) : {meilleur_score}")
 
 # ---------------------------------------------------------
-# 3. VISUALISATION (Heatmap)
+# 3. VISUALISATION (SANS SEABORN)
 # ---------------------------------------------------------
 plt.figure(figsize=(10, 6))
 
-# On affiche la heatmap des scores
-sns.heatmap(sub_df, annot=True, fmt="d", cmap="YlGnBu", cbar=False)
+plt.imshow(sub_df.values, aspect='auto')
+plt.colorbar(label="Note")
+
+plt.xticks(range(len(sub_df.columns)), sub_df.columns, rotation=90)
+plt.yticks(range(len(sub_df.index)), sub_df.index)
+
+# Affichage des valeurs dans chaque case
+for i in range(sub_df.shape[0]):
+    for j in range(sub_df.shape[1]):
+        plt.text(j, i, sub_df.iloc[i, j],
+                 ha="center", va="center", fontsize=8)
 
 # On entoure les choix de l'algo
-# (Juste pour l'affichage, on doit retrouver les indices)
 candidats_noms = sub_df.columns.tolist()
 for i, candidat_choisi in enumerate(meilleure_compo):
     j = candidats_noms.index(candidat_choisi)
-    # Rectangle rouge autour du choix
-    plt.gca().add_patch(plt.Rectangle((j, i), 1, 1, fill=False, edgecolor='red', lw=4))
+    plt.gca().add_patch(
+        plt.Rectangle((j-0.5, i-0.5), 1, 1,
+                      fill=False, edgecolor='red', lw=3)
+    )
 
 plt.title(f"Résultat V3 (Brute Force) - Échantillon réduit\nScore: {meilleur_score}", fontsize=14)
+plt.tight_layout()
 plt.show()
