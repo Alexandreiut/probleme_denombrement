@@ -2,119 +2,81 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import linprog
+import time
 
 # ---------------------------------------------------------
-# 1. DONNÉES (Matrice des scores C)
+# 1. DONNÉES ET CONFIGURATION
 # ---------------------------------------------------------
-# Reproduit le tableau exact de votre image
 data = {
-    'A': [4, 5, 3, 1, 3],
-    'B': [1, 1, 1, 2, 3],
-    'C': [5, 1, 2, 2, 1],
-    'D': [3, 4, 1, 1, 2],
-    'E': [1, 2, 2, 3, 4],
-    'F': [5, 3, 3, 4, 2],
-    'G': [4, 2, 2, 2, 3],
-    'H': [2, 2, 1, 2, 1],
-    'I': [1, 1, 2, 2, 4],
-    'J': [2, 2, 1, 1, 2]
+    'A': [4, 5, 3, 1, 3], 'B': [1, 1, 1, 2, 3],
+    'C': [5, 1, 2, 2, 1], 'D': [3, 4, 1, 1, 2],
+    'E': [1, 2, 2, 3, 4], 'F': [5, 3, 3, 4, 2],
+    'G': [4, 2, 2, 2, 3], 'H': [2, 2, 1, 2, 1],
+    'I': [1, 1, 2, 2, 4], 'J': [2, 2, 1, 1, 2]
 }
 postes = ['Avant', 'Milieu', 'Ailier G', 'Ailier D', 'Arrière']
 joueurs = list(data.keys())
+df = pd.DataFrame(data, index=postes)
+nb_postes, nb_joueurs = df.shape
 
-# DataFrame pour affichage (Matrice des Coûts/Gains)
-df_scores = pd.DataFrame(data, index=postes)
-
-print("--- Matrice des scores ---")
-print(df_scores)
-print("-" * 50)
+print("--- V2 : RÉSOLUTION PAR SIMPLEXE (OPTIMISATION LINÉAIRE) ---")
 
 # ---------------------------------------------------------
-# 2. MODÉLISATION POUR LE SOLVEUR (SCIPY)
+# 2. MODÉLISATION ET RÉSOLUTION
 # ---------------------------------------------------------
+start_time = time.time()
 
-# A. Fonction Objectif
-# Le solveur cherche à MINIMISER. Pour MAXIMISER le score, 
-# on passe les valeurs en négatif.
-# On "aplatit" la matrice (5 postes * 10 joueurs = 50 variables)
-couts = -1 * df_scores.values.flatten() 
+# A. Fonction Objectif : Minimiser (-Scores) pour Maximiser (Scores)
+c = -1 * df.values.flatten()
 
-# B. Contraintes d'Égalité (A_eq) : Chaque poste doit avoir EXACTEMENT 1 joueur
-# On a 5 postes. Pour chaque poste, la somme des variables des 10 joueurs = 1.
-A_eq = np.zeros((5, 50))
-b_eq = np.ones(5)
+# B. Contraintes d'Égalité : 1 joueur par poste exact
+A_eq = np.zeros((nb_postes, nb_postes * nb_joueurs))
+for i in range(nb_postes):
+    A_eq[i, i*nb_joueurs : (i+1)*nb_joueurs] = 1
+b_eq = np.ones(nb_postes)
 
-for i in range(5): # Pour chaque poste
-    # On met des 1 pour les 10 joueurs correspondant à ce poste
-    A_eq[i, i*10 : (i+1)*10] = 1
+# C. Contraintes d'Inégalité : Max 1 poste par joueur
+A_ub = np.zeros((nb_joueurs, nb_postes * nb_joueurs))
+for j in range(nb_joueurs):
+    for i in range(nb_postes):
+        A_ub[j, i*nb_joueurs + j] = 1
+b_ub = np.ones(nb_joueurs)
 
-# C. Contraintes d'Inégalité (A_ub) : Chaque joueur a au MAXIMUM 1 poste
-# On a 10 joueurs. La somme de leurs apparitions sur les 5 postes <= 1.
-A_ub = np.zeros((10, 50))
-b_ub = np.ones(10)
+# Résolution
+res = linprog(c, A_eq=A_eq, b_eq=b_eq, A_ub=A_ub, b_ub=b_ub, bounds=(0, 1), method='highs')
 
-for j in range(10): # Pour chaque joueur
-    for i in range(5): # Pour chaque poste
-        # On sélectionne la variable correspondant au joueur j au poste i
-        A_ub[j, i*10 + j] = 1
+end_time = time.time()
+execution_time = end_time - start_time
 
 # ---------------------------------------------------------
-# 3. RÉSOLUTION
+# 3. RÉSULTATS ET VISUALISATION
 # ---------------------------------------------------------
-print("Lancement de l'optimisation linéaire (Méthode du Simplexe)...")
+# Le nombre d'itérations correspond aux pivots du simplexe (explorations intelligentes)
+nb_iterations = res.nit
+score_max = -res.fun
 
-resultat = linprog(c=couts,          # Fonction objectif
-                   A_eq=A_eq, b_eq=b_eq,  # Contraintes postes (=1)
-                   A_ub=A_ub, b_ub=b_ub,  # Contraintes joueurs (<=1)
-                   bounds=(0, 1),         # Variables binaires (entre 0 et 1)
-                   method='highs')        # Algorithme moderne
+print(f"Itérations (Pivots) : {nb_iterations}")
+print(f"Temps d'exécution   : {execution_time:.4f} sec")
+print(f"Score Max trouvé    : {score_max:.0f}")
 
-# ---------------------------------------------------------
-# 4. INTERPRÉTATION DES RÉSULTATS
-# ---------------------------------------------------------
+# Reconstruction de la solution
+choix = res.x.reshape(nb_postes, nb_joueurs).round().astype(int)
+res_notes = []
+res_joueurs_noms = []
 
-if resultat.success:
-    # On remet le résultat (vecteur de 50) sous forme de matrice 5x10
-    choix_optimal = resultat.x.reshape(5, 10)
-    
-    # À cause des calculs flottants, on arrondit (0.9999 -> 1)
-    choix_optimal = np.round(choix_optimal).astype(int)
-    
-    score_total = -resultat.fun # On remet le score en positif
-    print(f"\n✅ Solution Optimale trouvée ! Score Total : {score_total:.0f}")
-    
-    # Création du tableau final
-    equipe_finale = []
-    
-    print("\nComposition de l'équipe :")
-    for i, poste in enumerate(postes):
-        # On cherche l'index du joueur sélectionné (là où il y a un 1)
-        idx_joueur = np.argmax(choix_optimal[i])
-        nom_joueur = joueurs[idx_joueur]
-        note = df_scores.iloc[i, idx_joueur]
-        
-        equipe_finale.append({'Poste': poste, 'Joueur': nom_joueur, 'Note': note})
-        print(f"- {poste:15s} : Joueur {nom_joueur} (Note : {note})")
-        
-else:
-    print("Pas de solution trouvée.")
+for i in range(nb_postes):
+    idx_j = np.argmax(choix[i]) # Trouve l'index du joueur choisi (le 1)
+    res_joueurs_noms.append(joueurs[idx_j])
+    res_notes.append(df.iloc[i, idx_j])
 
-# ---------------------------------------------------------
-# 5. VISUALISATION
-# ---------------------------------------------------------
-df_res = pd.DataFrame(equipe_finale)
-
-plt.figure(figsize=(10, 5))
-couleurs = ['green' if x == 5 else 'skyblue' for x in df_res['Note']]
-bars = plt.bar(df_res['Poste'], df_res['Note'], color=couleurs)
-
-plt.title(f"Résultat de l'Optimisation Linéaire (Z = {score_total:.0f})")
+plt.figure(figsize=(10, 6))
+bars = plt.bar(postes, res_notes, color='#2ecc71') # Vert pour différencier du brute force
+plt.title(f"V2: Solution Optimale (Simplexe)\nScore: {score_max:.0f} | Temps: {execution_time:.4f}s")
+plt.ylabel("Niveau de compétence")
 plt.ylim(0, 6)
-plt.ylabel('Note')
 
-# Ajouter le nom du joueur sur la barre
-for bar, joueur, note in zip(bars, df_res['Joueur'], df_res['Note']):
-    plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() - 0.5, 
-             f"{joueur}\n({note})", ha='center', color='white', fontweight='bold')
+for bar, nom, note in zip(bars, res_joueurs_noms, res_notes):
+    plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() - 0.5,
+             f"{nom}\n({note})", ha='center', color='white', fontweight='bold')
 
 plt.show()
